@@ -145,3 +145,10 @@ class AskPharmacistResponse(BaseModel):
 
     answer: str
     disclaimer: str
+
+
+class GeminiKeyRequest(BaseModel):
+    """Request body for configuring Gemini API key on the server."""
+
+    api_key: str
+

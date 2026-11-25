@@ -9,7 +9,9 @@ import {
   FileText,
   Globe,
   HelpCircle,
+  KeyRound,
   Loader2,
+  Lock,
   MessageSquareHeart,
   Pill,
   Printer,
@@ -51,6 +53,12 @@ export function App() {
   const [result, setResult] = useState<AnalysisResponse | null>(null);
   const [checkedFollowUps, setCheckedFollowUps] = useState<Record<number, boolean>>({});
   const [copiedQuestions, setCopiedQuestions] = useState(false);
+
+  // Secure Gemini Key Modal state (never stored in browser storage)
+  const [showKeyModal, setShowKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [savingKey, setSavingKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
 
   // Grounded Q&A state
   const [question, setQuestion] = useState('');
@@ -146,6 +154,32 @@ export function App() {
     window.setTimeout(() => setCopiedQuestions(false), 2000);
   };
 
+  const handleSaveApiKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!apiKeyInput.trim()) return;
+    setSavingKey(true);
+    setKeyError(null);
+    try {
+      const res = await fetch('/api/config/gemini-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKeyInput.trim() }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || 'Failed to save API key');
+      }
+      const data = await res.json();
+      setHealth((prev) => ({ ...(prev || {}), gemini_configured: !!data.gemini_configured }));
+      setApiKeyInput('');
+      setShowKeyModal(false);
+    } catch (err) {
+      setKeyError(err instanceof Error ? err.message : 'Could not save API key');
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
   const totalScheduledDoses = result
     ? result.daily_schedule.morning.length +
       result.daily_schedule.midday.length +
@@ -180,16 +214,25 @@ export function App() {
               RxNorm + OpenFDA Live
             </span>
             {health && (
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
+              <button
+                type="button"
+                onClick={() => {
+                  setKeyError(null);
+                  setApiKeyInput('');
+                  setShowKeyModal(true);
+                }}
+                title="Configure Gemini API key on server"
+                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition hover:opacity-90 ${
                   health.gemini_configured
                     ? 'border-teal-400/40 bg-teal-950/50 text-teal-100'
-                    : 'border-amber-300/40 bg-amber-950/50 text-amber-200'
+                    : 'border-amber-300/50 bg-amber-950/60 text-amber-200 hover:bg-amber-900/70'
                 }`}
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                {health.gemini_configured ? 'Gemini Multimodal Ready' : 'Demo Mode (Add GEMINI_API_KEY for Uploads)'}
-              </span>
+                <KeyRound className="h-3.5 w-3.5" />
+                {health.gemini_configured
+                  ? 'Gemini Multimodal Ready (Update Key)'
+                  : 'Demo Mode (Click to Add GEMINI_API_KEY)'}
+              </button>
             )}
 
             <div className="flex items-center gap-1.5 rounded-xl border border-teal-500/60 bg-teal-800/90 px-3 py-1.5 shadow-xs">
@@ -686,6 +729,75 @@ export function App() {
       <footer className="mt-8 border-t border-teal-200/80 bg-teal-900/5 py-5 text-center text-xs text-teal-900/80">
         VeriCare — Built for SLAY HACKS 2026 <span className="font-bold">By Adarsh Panicker</span>
       </footer>
+
+      {/* Secure Server-Side Gemini Key Modal */}
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs no-print">
+          <div className="w-full max-w-md rounded-2xl border border-teal-200 bg-white p-6 shadow-xl">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-100 text-teal-700">
+                <Lock className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Configure Gemini API Key
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Enables live PDF/photo uploads &amp; multilingual translation
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveApiKey} className="mt-4 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Gemini API Key (masked)
+                </label>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  required
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder="••••••••••••••••••••••••••••"
+                  className="mt-1 w-full rounded-xl border border-teal-200 bg-teal-50/30 px-3.5 py-2.5 text-sm focus:border-teal-500 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <p className="rounded-lg bg-slate-50 p-2.5 text-[11px] leading-relaxed text-slate-600">
+                <strong>Privacy &amp; Security:</strong> Your key is sent directly to your local backend
+                server and stored only on the server side. It is never saved in browser storage and
+                never sent back to the frontend.
+              </p>
+
+              {keyError && (
+                <p className="text-xs font-semibold text-rose-700">{keyError}</p>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApiKeyInput('');
+                    setShowKeyModal(false);
+                  }}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingKey || !apiKeyInput.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-xs font-bold text-white hover:bg-teal-700 disabled:opacity-50"
+                >
+                  {savingKey && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Save Key Securely
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

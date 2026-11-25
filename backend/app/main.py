@@ -10,6 +10,7 @@ from app.models import (
     AnalysisResponse,
     AskPharmacistRequest,
     AskPharmacistResponse,
+    GeminiKeyRequest,
     SampleSummaryInfo,
 )
 from app.services.clinical_db import verify_all_medications
@@ -56,6 +57,29 @@ async def health_check() -> dict:
         "rxnorm_api": "https://rxnav.nlm.nih.gov/REST",
         "openfda_api": "https://api.fda.gov/drug/label.json",
     }
+
+
+@app.post("/api/config/gemini-key")
+async def set_gemini_key(req: GeminiKeyRequest) -> dict:
+    """Store Gemini API key server-side only; never echo or expose it back."""
+    key = req.api_key.strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="API key cannot be empty.")
+
+    os.environ["GEMINI_API_KEY"] = key
+
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    existing_lines: list[str] = []
+    if env_path.exists():
+        existing_lines = [
+            line
+            for line in env_path.read_text(encoding="utf-8").splitlines()
+            if not line.startswith("GEMINI_API_KEY=")
+        ]
+    existing_lines.append(f"GEMINI_API_KEY={key}")
+    env_path.write_text("\n".join(existing_lines) + "\n", encoding="utf-8")
+
+    return {"gemini_configured": get_gemini_client() is not None}
 
 
 @app.get("/api/samples", response_model=list[SampleSummaryInfo])
