@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}
