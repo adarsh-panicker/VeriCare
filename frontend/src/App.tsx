@@ -154,6 +154,15 @@ export function App() {
     window.setTimeout(() => setCopiedQuestions(false), 2000);
   };
 
+  const handleGoHome = () => {
+    setResult(null);
+    setError(null);
+    setQaReply(null);
+    setQuestion('');
+    setCheckedFollowUps({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSaveApiKey = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKeyInput.trim()) return;
@@ -193,7 +202,12 @@ export function App() {
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-teal-700/40 bg-teal-900/95 text-white shadow-md backdrop-blur no-print">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleGoHome}
+            title="Return to VeriCare Home"
+            className="flex cursor-pointer items-center gap-3 rounded-xl text-left transition hover:opacity-90 focus:outline-none"
+          >
             <VeriCareLogo className="h-11 w-11 shrink-0 drop-shadow-sm" />
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -206,7 +220,7 @@ export function App() {
                 Clinical Discharge Translator &amp; FDA Interaction Auditor
               </p>
             </div>
-          </div>
+          </button>
 
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-950/50 px-3 py-1 text-xs font-medium text-emerald-200">
