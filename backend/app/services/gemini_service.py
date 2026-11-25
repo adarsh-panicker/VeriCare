@@ -86,33 +86,49 @@ async def extract_discharge_with_gemini(
 async def translate_response_if_needed(
     response_obj: AnalysisResponse, target_language: str
 ) -> AnalysisResponse:
-    """Translate patient-facing fields of a fallback sample when Gemini is available."""
+    """Translate all patient-facing fields of an AnalysisResponse via Gemini."""
     if target_language.lower() == "english":
+        response_obj.language = "English"
         return response_obj
 
     client = get_gemini_client()
     if client is None:
-        response_obj.document_warnings.append(
-            f"Translation to {target_language} requires GEMINI_API_KEY; showing English."
-        )
+        warning = f"Translation to {target_language} requires GEMINI_API_KEY; showing English."
+        if warning not in response_obj.document_warnings:
+            response_obj.document_warnings.append(warning)
         return response_obj
 
     model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip() or "gemini-2.5-flash"
-    payload = response_obj.model_dump(
-        include={
-            "medical_disclaimer",
-            "patient_friendly_summary",
-            "primary_diagnosis",
-            "document_warnings",
-            "red_flags",
-            "follow_up_instructions",
-            "questions_for_pharmacist",
-        }
-    )
+
+    payload = {
+        "medical_disclaimer": response_obj.medical_disclaimer,
+        "patient_friendly_summary": response_obj.patient_friendly_summary,
+        "primary_diagnosis": response_obj.primary_diagnosis,
+        "document_warnings": response_obj.document_warnings,
+        "follow_up_instructions": response_obj.follow_up_instructions,
+        "questions_for_pharmacist": response_obj.questions_for_pharmacist,
+        "red_flags": [rf.model_dump() for rf in response_obj.red_flags],
+        "medications": [
+            {
+                "plain_purpose": m.extracted.plain_purpose,
+                "plain_instructions": m.extracted.plain_instructions,
+                "uncertainty_reason": m.extracted.uncertainty_reason,
+            }
+            for m in response_obj.medications
+        ],
+        "interactions": [
+            {
+                "title": a.title,
+                "plain_explanation": a.plain_explanation,
+                "what_to_watch_for": a.what_to_watch_for,
+            }
+            for a in response_obj.interactions
+        ],
+    }
 
     prompt = (
-        f"Translate all string values in this JSON into {target_language} at a 6th-grade reading level. "
-        "Keep JSON keys and enum values ('call_911', 'call_doctor') unchanged. Return valid JSON only.\n\n"
+        f"Translate all patient-facing string values in this JSON into {target_language} at a clear 6th-grade reading level. "
+        "Keep all JSON keys, array lengths, null values, and enum values ('call_911', 'call_doctor') unchanged. Return valid JSON only.\n\n"
         f"{json.dumps(payload, ensure_ascii=False)}"
     )
 
@@ -136,12 +152,35 @@ async def translate_response_if_needed(
         ):
             if key in translated:
                 setattr(response_obj, key, translated[key])
+
         if "red_flags" in translated and isinstance(translated["red_flags"], list):
             from app.models import RedFlagItem
 
             response_obj.red_flags = [
                 RedFlagItem.model_validate(item) for item in translated["red_flags"]
             ]
+
+        if "medications" in translated and isinstance(translated["medications"], list):
+            for med, t_med in zip(response_obj.medications, translated["medications"]):
+                if isinstance(t_med, dict):
+                    if t_med.get("plain_purpose"):
+                        med.extracted.plain_purpose = t_med["plain_purpose"]
+                    if t_med.get("plain_instructions"):
+                        med.extracted.plain_instructions = t_med["plain_instructions"]
+                    if t_med.get("uncertainty_reason"):
+                        med.extracted.uncertainty_reason = t_med["uncertainty_reason"]
+
+        if "interactions" in translated and isinstance(translated["interactions"], list):
+            for alert, t_alert in zip(response_obj.interactions, translated["interactions"]):
+                if isinstance(t_alert, dict):
+                    if t_alert.get("title"):
+                        alert.title = t_alert["title"]
+                    if t_alert.get("plain_explanation"):
+                        alert.plain_explanation = t_alert["plain_explanation"]
+                    if t_alert.get("what_to_watch_for"):
+                        alert.what_to_watch_for = t_alert["what_to_watch_for"]
+
+        response_obj.daily_schedule = build_daily_schedule(response_obj.medications)
         response_obj.language = target_language
     return response_obj
 

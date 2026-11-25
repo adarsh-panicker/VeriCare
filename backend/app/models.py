@@ -152,3 +152,11 @@ class GeminiKeyRequest(BaseModel):
 
     api_key: str
 
+
+class TranslateAnalysisRequest(BaseModel):
+    """Request body to translate an existing AnalysisResponse in-place."""
+
+    analysis: AnalysisResponse
+    target_language: str
+
+

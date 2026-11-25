@@ -25,6 +25,7 @@ import { InteractionCard } from './components/InteractionCard';
 import { MedicationCard } from './components/MedicationCard';
 import { ScheduleBoard } from './components/ScheduleBoard';
 import { VeriCareLogo } from './components/VeriCareLogo';
+import { UI_LABELS } from './i18n';
 import type {
   AnalysisResponse,
   AskPharmacistResponse,
@@ -51,6 +52,8 @@ export function App() {
   const [activeStage, setActiveStage] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResponse | null>(null);
+  const [baseResult, setBaseResult] = useState<AnalysisResponse | null>(null);
+  const [translating, setTranslating] = useState(false);
   const [checkedFollowUps, setCheckedFollowUps] = useState<Record<number, boolean>>({});
   const [copiedQuestions, setCopiedQuestions] = useState(false);
 
@@ -109,6 +112,11 @@ export function App() {
 
       const data: AnalysisResponse = await res.json();
       setResult(data);
+      if (language === 'English') {
+        setBaseResult(data);
+      } else {
+        setBaseResult(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to analyze discharge summary.');
     } finally {
@@ -156,11 +164,43 @@ export function App() {
 
   const handleGoHome = () => {
     setResult(null);
+    setBaseResult(null);
     setError(null);
     setQaReply(null);
     setQuestion('');
     setCheckedFollowUps({});
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleLanguageChange = async (newLang: string) => {
+    setLanguage(newLang);
+    if (!result) return;
+
+    if (newLang === 'English' && baseResult) {
+      setResult(baseResult);
+      return;
+    }
+
+    setTranslating(true);
+    setError(null);
+    try {
+      const source = baseResult || result;
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analysis: source, target_language: newLang }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || 'Translation failed');
+      }
+      const translated: AnalysisResponse = await res.json();
+      setResult(translated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to translate results.');
+    } finally {
+      setTranslating(false);
+    }
   };
 
   const handleSaveApiKey = async (e: React.FormEvent) => {
@@ -250,12 +290,17 @@ export function App() {
             )}
 
             <div className="flex items-center gap-1.5 rounded-xl border border-teal-500/60 bg-teal-800/90 px-3 py-1.5 shadow-xs">
-              <Globe className="h-4 w-4 text-teal-200" />
+              {translating ? (
+                <Loader2 className="h-4 w-4 animate-spin text-teal-200" />
+              ) : (
+                <Globe className="h-4 w-4 text-teal-200" />
+              )}
               <select
                 aria-label="Target patient language"
                 value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="bg-teal-800 text-xs font-semibold text-white focus:outline-none"
+                disabled={translating || loading}
+                onChange={(e) => handleLanguageChange(e.target.value)}
+                className="bg-teal-800 text-xs font-semibold text-white focus:outline-none disabled:opacity-60"
               >
                 {LANGUAGES.map((lang) => (
                   <option key={lang} value={lang}>
@@ -272,7 +317,7 @@ export function App() {
                 className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-teal-900 shadow-xs transition hover:bg-teal-50"
               >
                 <Printer className="h-3.5 w-3.5" />
-                Print Care Plan
+                {(UI_LABELS[language] || UI_LABELS.English).printCarePlan}
               </button>
             )}
           </div>
@@ -567,7 +612,7 @@ export function App() {
             <section className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-lg font-extrabold text-slate-900">
-                  FDA Drug Interaction Audit ({result.interactions.length})
+                  {(UI_LABELS[language] || UI_LABELS.English).interactionAudit} ({result.interactions.length})
                 </h3>
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200">
                   Checked deterministically against OpenFDA &amp; clinical rules
@@ -589,14 +634,16 @@ export function App() {
 
             {/* Daily Medication Schedule */}
             <section className="space-y-3">
-              <h3 className="text-lg font-extrabold text-slate-900">Your Daily Medication Schedule</h3>
+              <h3 className="text-lg font-extrabold text-slate-900">
+                {(UI_LABELS[language] || UI_LABELS.English).dailySchedule}
+              </h3>
               <ScheduleBoard schedule={result.daily_schedule} />
             </section>
 
             {/* Verified Medication Cards */}
             <section className="space-y-3">
               <h3 className="text-lg font-extrabold text-slate-900">
-                Your Medicines Explained ({result.medications.length})
+                {(UI_LABELS[language] || UI_LABELS.English).medicinesExplained} ({result.medications.length})
               </h3>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {result.medications.map((med, idx) => (
@@ -610,7 +657,7 @@ export function App() {
               <section className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm print-break-inside-avoid">
                 <h3 className="flex items-center gap-2 text-lg font-extrabold text-rose-900">
                   <AlertTriangle className="h-5 w-5 text-rose-600" />
-                  Red-Flag Symptoms (When to Get Help)
+                  {(UI_LABELS[language] || UI_LABELS.English).redFlags}
                 </h3>
                 <div className="mt-3.5 space-y-2.5">
                   {result.red_flags.map((rf, i) => (
@@ -644,7 +691,7 @@ export function App() {
                 <div>
                   <h3 className="flex items-center gap-2 text-lg font-extrabold text-slate-900">
                     <CalendarCheck className="h-5 w-5 text-teal-600" />
-                    Interactive Follow-Up Checklist
+                    {(UI_LABELS[language] || UI_LABELS.English).followUpChecklist}
                   </h3>
                   <ul className="mt-3 space-y-2">
                     {result.follow_up_instructions.map((item, i) => {
@@ -683,7 +730,7 @@ export function App() {
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
                       <HelpCircle className="h-5 w-5 text-teal-600" />
-                      Questions to Ask Your Pharmacist
+                      {(UI_LABELS[language] || UI_LABELS.English).pharmacistQuestions}
                     </h3>
                     <button
                       type="button"
@@ -707,7 +754,7 @@ export function App() {
             <section className="rounded-2xl border border-teal-200 bg-white p-5 shadow-sm no-print">
               <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
                 <MessageSquareHeart className="h-5 w-5 text-teal-600" />
-                Ask About Your Discharge Plan
+                {(UI_LABELS[language] || UI_LABELS.English).askPlan}
               </h3>
               <p className="mt-1 text-xs text-slate-500">
                 Answers are strictly grounded in your extracted discharge summary and FDA labels.

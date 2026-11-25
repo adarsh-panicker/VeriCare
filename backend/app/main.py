@@ -12,6 +12,7 @@ from app.models import (
     AskPharmacistResponse,
     GeminiKeyRequest,
     SampleSummaryInfo,
+    TranslateAnalysisRequest,
 )
 from app.services.clinical_db import verify_all_medications
 from app.services.gemini_service import (
@@ -177,10 +178,16 @@ async def analyze_discharge(
         questions_for_pharmacist=extracted.questions_for_pharmacist,
     )
 
-    if analysis_mode == "sample_offline_fallback" and language.lower() != "english":
+    if language.lower() != "english":
         response = await translate_response_if_needed(response, language)
 
     return response
+
+
+@app.post("/api/translate", response_model=AnalysisResponse)
+async def translate_analysis(req: TranslateAnalysisRequest) -> AnalysisResponse:
+    """Translate an already-audited AnalysisResponse into a new target language."""
+    return await translate_response_if_needed(req.analysis, req.target_language)
 
 
 @app.post("/api/ask", response_model=AskPharmacistResponse)
