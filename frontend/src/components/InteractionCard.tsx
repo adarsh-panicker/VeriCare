@@ -7,24 +7,24 @@ interface Props {
 
 const SEVERITY_STYLES = {
   high: {
-    wrapper: 'border-rose-300 bg-rose-50/90',
-    badge: 'bg-rose-600 text-white',
+    wrapper: 'border-rose-200 border-l-4 border-l-rose-600 bg-gradient-to-r from-rose-50 via-white to-rose-50/40',
+    badge: 'bg-rose-600 text-white shadow-xs',
     icon: AlertOctagon,
-    iconColor: 'text-rose-600',
+    iconWrap: 'bg-rose-100 text-rose-700',
     label: 'HIGH SEVERITY',
   },
   moderate: {
-    wrapper: 'border-amber-300 bg-amber-50/90',
-    badge: 'bg-amber-500 text-slate-950',
+    wrapper: 'border-amber-200 border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 via-white to-amber-50/40',
+    badge: 'bg-amber-500 text-slate-950 shadow-xs',
     icon: AlertTriangle,
-    iconColor: 'text-amber-600',
+    iconWrap: 'bg-amber-100 text-amber-700',
     label: 'MODERATE',
   },
   low: {
-    wrapper: 'border-sky-300 bg-sky-50/90',
-    badge: 'bg-sky-600 text-white',
+    wrapper: 'border-sky-200 border-l-4 border-l-sky-500 bg-gradient-to-r from-sky-50 via-white to-sky-50/40',
+    badge: 'bg-sky-600 text-white shadow-xs',
     icon: ShieldAlert,
-    iconColor: 'text-sky-600',
+    iconWrap: 'bg-sky-100 text-sky-700',
     label: 'LOW',
   },
 };
@@ -34,30 +34,39 @@ export function InteractionCard({ alert }: Props) {
   const Icon = style.icon;
 
   return (
-    <div className={`rounded-xl border-2 p-4 shadow-xs print-break-inside-avoid ${style.wrapper}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <Icon className={`h-5 w-5 shrink-0 ${style.iconColor}`} />
-          <h4 className="font-semibold text-slate-900">{alert.title}</h4>
+    <div className={`rounded-2xl border p-5 shadow-sm transition-all hover:shadow-md print-break-inside-avoid ${style.wrapper}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${style.iconWrap}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-base font-bold text-slate-900">{alert.title}</h4>
+            <p className="mt-0.5 text-xs font-medium text-slate-600">
+              Flagged pair:{' '}
+              <span className="rounded bg-white px-1.5 py-0.5 font-semibold text-slate-900 ring-1 ring-slate-200">
+                {alert.drug_a}
+              </span>{' '}
+              +{' '}
+              <span className="rounded bg-white px-1.5 py-0.5 font-semibold text-slate-900 ring-1 ring-slate-200">
+                {alert.drug_b}
+              </span>
+            </p>
+          </div>
         </div>
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wide ${style.badge}`}>
+        <span className={`rounded-full px-3 py-1 text-xs font-bold tracking-wide ${style.badge}`}>
           {style.label}
         </span>
       </div>
 
-      <p className="mt-2 text-xs font-medium text-slate-600">
-        Flagged pair: <span className="font-semibold text-slate-900">{alert.drug_a}</span> +{' '}
-        <span className="font-semibold text-slate-900">{alert.drug_b}</span>
-      </p>
+      <p className="mt-3 text-sm leading-relaxed text-slate-800">{alert.plain_explanation}</p>
 
-      <p className="mt-2 text-sm leading-relaxed text-slate-800">{alert.plain_explanation}</p>
-
-      <div className="mt-3 rounded-lg bg-white/80 p-3 text-sm text-slate-800 border border-slate-200/80">
-        <span className="font-semibold text-slate-900">What to watch for: </span>
+      <div className="mt-3 rounded-xl border border-slate-200/80 bg-white/90 p-3.5 text-sm text-slate-800">
+        <span className="font-bold text-slate-900">What to watch for: </span>
         {alert.what_to_watch_for}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+      <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/60 pt-2.5 text-xs text-slate-600">
         <span>
           Source: <strong className="text-slate-800">{alert.source_citation}</strong>
         </span>
@@ -66,7 +75,7 @@ export function InteractionCard({ alert }: Props) {
             href={alert.source_url}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 font-semibold text-teal-700 hover:text-teal-900 underline"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-teal-50 px-2.5 py-1 font-semibold text-teal-800 ring-1 ring-teal-200 transition hover:bg-teal-100"
           >
             View Official FDA / DailyMed Label
             <ExternalLink className="h-3.5 w-3.5" />

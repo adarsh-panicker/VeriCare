@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 import {
   AlertTriangle,
+  BookOpenCheck,
   CalendarCheck,
+  Check,
   CheckCircle2,
-  ClipboardList,
+  Copy,
   FileText,
   Globe,
   HelpCircle,
   Loader2,
   MessageSquareHeart,
+  Pill,
   Printer,
   Send,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Upload,
@@ -45,6 +49,8 @@ export function App() {
   const [activeStage, setActiveStage] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResponse | null>(null);
+  const [checkedFollowUps, setCheckedFollowUps] = useState<Record<number, boolean>>({});
+  const [copiedQuestions, setCopiedQuestions] = useState(false);
 
   // Grounded Q&A state
   const [question, setQuestion] = useState('');
@@ -66,6 +72,7 @@ export function App() {
     setLoading(true);
     setError(null);
     setQaReply(null);
+    setCheckedFollowUps({});
     setActiveStage(1);
 
     const t1 = window.setTimeout(() => setActiveStage(2), 900);
@@ -131,17 +138,33 @@ export function App() {
     }
   };
 
+  const handleCopyQuestions = async () => {
+    if (!result) return;
+    const text = result.questions_for_pharmacist.map((q, idx) => `${idx + 1}. ${q}`).join('\n');
+    await navigator.clipboard.writeText(text).catch(() => {});
+    setCopiedQuestions(true);
+    window.setTimeout(() => setCopiedQuestions(false), 2000);
+  };
+
+  const totalScheduledDoses = result
+    ? result.daily_schedule.morning.length +
+      result.daily_schedule.midday.length +
+      result.daily_schedule.evening.length +
+      result.daily_schedule.bedtime.length +
+      result.daily_schedule.as_needed.length
+    : 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-100 via-teal-50 to-emerald-50 text-slate-900">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-teal-700/40 bg-teal-900/95 text-white backdrop-blur no-print shadow-sm">
+      <header className="sticky top-0 z-20 border-b border-teal-700/40 bg-teal-900/95 text-white shadow-md backdrop-blur no-print">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
-            <VeriCareLogo className="h-11 w-11 shrink-0 drop-shadow-xs" />
+            <VeriCareLogo className="h-11 w-11 shrink-0 drop-shadow-sm" />
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-bold tracking-tight text-white">VeriCare</h1>
-                <span className="rounded-full bg-teal-700/80 border border-teal-500/50 px-2.5 py-0.5 text-[11px] font-semibold text-teal-100">
+                <h1 className="text-xl font-extrabold tracking-tight text-white">VeriCare</h1>
+                <span className="rounded-full border border-teal-400/40 bg-teal-700/80 px-2.5 py-0.5 text-[11px] font-semibold text-teal-100">
                   By Adarsh Panicker
                 </span>
               </div>
@@ -169,7 +192,7 @@ export function App() {
               </span>
             )}
 
-            <div className="flex items-center gap-1.5 rounded-lg border border-teal-600 bg-teal-800/90 px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5 rounded-xl border border-teal-500/60 bg-teal-800/90 px-3 py-1.5 shadow-xs">
               <Globe className="h-4 w-4 text-teal-200" />
               <select
                 aria-label="Target patient language"
@@ -189,7 +212,7 @@ export function App() {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-teal-900 hover:bg-teal-50"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-teal-900 shadow-xs transition hover:bg-teal-50"
               >
                 <Printer className="h-3.5 w-3.5" />
                 Print Care Plan
@@ -200,11 +223,47 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+        {/* Hero Banner */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-700 p-6 text-white shadow-md no-print">
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl space-y-1.5">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-teal-100 backdrop-blur">
+                <Sparkles className="h-3.5 w-3.5" />
+                Clear, Verified Post-Hospital Care
+              </span>
+              <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+                Understand every prescription before you take the first dose.
+              </h2>
+              <p className="text-sm text-teal-100/90">
+                Upload a hospital discharge paper or try a clinical sample to get a 6th-grade action plan,
+                daily pill schedule, and deterministic OpenFDA interaction audit.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="rounded-xl bg-white/10 p-3 backdrop-blur">
+                <p className="font-bold text-teal-200">Step 1</p>
+                <p className="mt-0.5 font-medium text-white">Extract Rx</p>
+              </div>
+              <div className="rounded-xl bg-white/10 p-3 backdrop-blur">
+                <p className="font-bold text-teal-200">Step 2</p>
+                <p className="mt-0.5 font-medium text-white">FDA Audit</p>
+              </div>
+              <div className="rounded-xl bg-white/10 p-3 backdrop-blur">
+                <p className="font-bold text-teal-200">Step 3</p>
+                <p className="mt-0.5 font-medium text-white">Care Plan</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Responsible AI Banner */}
-        <div className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs sm:text-sm text-sky-950">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-sky-700 mt-0.5" />
+        <div className="flex items-start gap-3 rounded-2xl border border-teal-200 bg-white/90 px-4 py-3.5 text-xs sm:text-sm text-slate-800 shadow-xs">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-700">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
           <div>
-            <span className="font-bold">Responsible AI &amp; Safety Guardrail: </span>
+            <span className="font-bold text-teal-950">Responsible AI &amp; Safety Guardrail: </span>
             VeriCare translates hospital jargon into 6th-grade plain language and cross-checks prescriptions
             against official NLM RxNorm &amp; OpenFDA drug labels. It is <strong>not medical advice</strong> — always
             confirm doses and flagged interactions with your doctor or pharmacist.
@@ -212,18 +271,18 @@ export function App() {
         </div>
 
         {/* Input / Demo Selector */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs no-print">
+        <section className="rounded-2xl border border-teal-200/80 bg-white p-5 sm:p-6 shadow-sm no-print">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
             {/* Left: Upload or Paste */}
-            <div className="lg:col-span-6 space-y-3">
+            <div className="lg:col-span-6 space-y-3.5">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-bold text-slate-900">1. Upload Discharge Paper or Rx</h2>
-                <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs font-semibold">
+                <div className="flex rounded-xl bg-teal-50 p-1 text-xs font-semibold ring-1 ring-teal-200/70">
                   <button
                     type="button"
                     onClick={() => setInputTab('upload')}
-                    className={`rounded-md px-2.5 py-1 ${
-                      inputTab === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                    className={`rounded-lg px-3 py-1 transition ${
+                      inputTab === 'upload' ? 'bg-teal-700 text-white shadow-xs' : 'text-teal-800 hover:bg-teal-100'
                     }`}
                   >
                     Photo / PDF
@@ -231,8 +290,8 @@ export function App() {
                   <button
                     type="button"
                     onClick={() => setInputTab('paste')}
-                    className={`rounded-md px-2.5 py-1 ${
-                      inputTab === 'paste' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                    className={`rounded-lg px-3 py-1 transition ${
+                      inputTab === 'paste' ? 'bg-teal-700 text-white shadow-xs' : 'text-teal-800 hover:bg-teal-100'
                     }`}
                   >
                     Paste Text
@@ -241,9 +300,11 @@ export function App() {
               </div>
 
               {inputTab === 'upload' ? (
-                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/70 p-6 text-center transition hover:border-teal-500 hover:bg-teal-50/30">
-                  <Upload className="h-8 w-8 text-teal-600" />
-                  <p className="mt-2 text-sm font-semibold text-slate-800">
+                <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-teal-300 bg-teal-50/40 p-7 text-center transition hover:border-teal-500 hover:bg-teal-50">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-100 text-teal-700">
+                    <Upload className="h-6 w-6" />
+                  </div>
+                  <p className="mt-3 text-sm font-bold text-slate-800">
                     {selectedFile ? selectedFile.name : 'Click to upload discharge PDF, photo, or text'}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -262,7 +323,7 @@ export function App() {
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
                   placeholder="Paste hospital discharge summary or medication list here..."
-                  className="w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-teal-500 focus:outline-none"
+                  className="w-full rounded-2xl border border-teal-200 bg-teal-50/20 p-3.5 text-sm focus:border-teal-500 focus:bg-white focus:outline-none"
                 />
               )}
 
@@ -279,7 +340,7 @@ export function App() {
                       : { text: rawText }
                   )
                 }
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Translate &amp; Audit with FDA Labels
@@ -287,9 +348,9 @@ export function App() {
             </div>
 
             {/* Right: 1-Click Samples */}
-            <div className="lg:col-span-6 space-y-3">
+            <div className="lg:col-span-6 space-y-3.5">
               <h2 className="text-base font-bold text-slate-900">
-                Or Try a 1-Click Clinical Demo
+                2. Or Try a 1-Click Clinical Demo
               </h2>
               <div className="space-y-2.5">
                 {samples.map((s) => (
@@ -298,18 +359,22 @@ export function App() {
                     type="button"
                     disabled={loading}
                     onClick={() => runAnalysis({ sampleId: s.id })}
-                    className="flex w-full items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 text-left transition hover:border-teal-500 hover:bg-teal-50/40 disabled:opacity-50"
+                    className="group flex w-full items-start justify-between gap-3 rounded-2xl border border-teal-200/80 bg-gradient-to-r from-teal-50/50 to-white p-4 text-left shadow-xs transition-all hover:-translate-y-0.5 hover:border-teal-500 hover:shadow-md disabled:opacity-50"
                   >
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900">{s.title}</span>
-                        <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-bold text-teal-800">
+                        <span className="text-sm font-bold text-slate-900 group-hover:text-teal-800">
+                          {s.title}
+                        </span>
+                        <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-[10px] font-bold text-teal-800">
                           {s.highlight_badge}
                         </span>
                       </div>
-                      <p className="mt-0.5 text-xs text-slate-600">{s.subtitle}</p>
+                      <p className="mt-1 text-xs text-slate-600">{s.subtitle}</p>
                     </div>
-                    <FileText className="h-5 w-5 shrink-0 text-teal-700 mt-0.5" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-100/80 text-teal-700 transition group-hover:bg-teal-600 group-hover:text-white">
+                      <FileText className="h-4 w-4" />
+                    </div>
                   </button>
                 ))}
               </div>
@@ -318,7 +383,7 @@ export function App() {
 
           {/* Pipeline Progress */}
           {loading && (
-            <div className="mt-5 grid grid-cols-1 gap-2 rounded-xl border border-teal-200 bg-teal-50/60 p-3 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-2.5 rounded-2xl border border-teal-200 bg-teal-50/80 p-3.5 sm:grid-cols-3">
               {[
                 '1. Multimodal OCR & Extraction',
                 '2. RxNorm & OpenFDA Verification',
@@ -330,12 +395,12 @@ export function App() {
                 return (
                   <div
                     key={stepLabel}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold ${
+                    className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
                       active
-                        ? 'bg-teal-600 text-white'
+                        ? 'bg-teal-700 text-white shadow-xs'
                         : done
                           ? 'bg-emerald-100 text-emerald-900'
-                          : 'bg-white/70 text-slate-500'
+                          : 'bg-white/80 text-slate-500'
                     }`}
                   >
                     {active ? (
@@ -353,7 +418,7 @@ export function App() {
           )}
 
           {error && (
-            <div className="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900">
+            <div className="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-3.5 text-sm text-rose-900">
               <strong>Error:</strong> {error}
             </div>
           )}
@@ -362,9 +427,51 @@ export function App() {
         {/* Results Dashboard */}
         {result && (
           <div className="space-y-6">
+            {/* Quick-Glance Metrics Row */}
+            <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-2xl border border-teal-200 bg-white p-4 shadow-xs">
+                <div className="flex items-center gap-2 text-xs font-semibold text-teal-700">
+                  <Pill className="h-4 w-4" />
+                  Medicines Audited
+                </div>
+                <p className="mt-1 text-2xl font-extrabold text-slate-900">{result.medications.length}</p>
+              </div>
+              <div
+                className={`rounded-2xl border p-4 shadow-xs ${
+                  result.interactions.length > 0
+                    ? 'border-rose-200 bg-rose-50/70'
+                    : 'border-emerald-200 bg-emerald-50/70'
+                }`}
+              >
+                <div
+                  className={`flex items-center gap-2 text-xs font-semibold ${
+                    result.interactions.length > 0 ? 'text-rose-700' : 'text-emerald-700'
+                  }`}
+                >
+                  <ShieldAlert className="h-4 w-4" />
+                  Interaction Alerts
+                </div>
+                <p className="mt-1 text-2xl font-extrabold text-slate-900">{result.interactions.length}</p>
+              </div>
+              <div className="rounded-2xl border border-sky-200 bg-white p-4 shadow-xs">
+                <div className="flex items-center gap-2 text-xs font-semibold text-sky-700">
+                  <CalendarCheck className="h-4 w-4" />
+                  Daily Doses
+                </div>
+                <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalScheduledDoses}</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-xs">
+                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700">
+                  <BookOpenCheck className="h-4 w-4" />
+                  Reading Level
+                </div>
+                <p className="mt-1 text-lg font-extrabold text-slate-900">6th Grade</p>
+              </div>
+            </section>
+
             {/* Document Warnings / Low OCR Confidence */}
             {(result.overall_ocr_confidence !== 'high' || result.document_warnings.length > 0) && (
-              <div className="rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
+              <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 shadow-sm">
                 <div className="flex items-center gap-2 font-bold text-amber-950">
                   <AlertTriangle className="h-5 w-5 text-amber-600" />
                   Uncertainty &amp; Handwriting Review Required ({result.overall_ocr_confidence.toUpperCase()} Confidence)
@@ -378,42 +485,44 @@ export function App() {
             )}
 
             {/* Plain-Language Summary */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <section className="rounded-2xl border border-teal-200 bg-white p-5 sm:p-6 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-teal-700">
+                  <span className="inline-block rounded-full bg-teal-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-teal-800">
                     {result.reading_level_target} • {result.language}
                   </span>
-                  <h2 className="text-xl font-bold text-slate-900">{result.primary_diagnosis}</h2>
+                  <h2 className="mt-1.5 text-xl font-extrabold text-slate-900">
+                    {result.primary_diagnosis}
+                  </h2>
                 </div>
                 {result.discharge_date && (
-                  <span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                  <span className="rounded-xl bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-800 ring-1 ring-teal-200">
                     Discharge Date: {result.discharge_date}
                   </span>
                 )}
               </div>
-              <p className="mt-3 text-base leading-relaxed text-slate-800">
+              <p className="mt-3 text-base leading-relaxed text-slate-700">
                 {result.patient_friendly_summary}
               </p>
             </section>
 
             {/* Deterministic Drug Interactions */}
             <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-lg font-extrabold text-slate-900">
                   FDA Drug Interaction Audit ({result.interactions.length})
                 </h3>
-                <span className="text-xs font-medium text-slate-500">
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200">
                   Checked deterministically against OpenFDA &amp; clinical rules
                 </span>
               </div>
               {result.interactions.length === 0 ? (
-                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-900">
+                <div className="flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900 shadow-xs">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   No high-priority pairwise drug interactions detected in your medication list.
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3.5">
                   {result.interactions.map((alert) => (
                     <InteractionCard key={alert.id} alert={alert} />
                   ))}
@@ -423,13 +532,13 @@ export function App() {
 
             {/* Daily Medication Schedule */}
             <section className="space-y-3">
-              <h3 className="text-lg font-bold text-slate-900">Your Daily Medication Schedule</h3>
+              <h3 className="text-lg font-extrabold text-slate-900">Your Daily Medication Schedule</h3>
               <ScheduleBoard schedule={result.daily_schedule} />
             </section>
 
             {/* Verified Medication Cards */}
             <section className="space-y-3">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-extrabold text-slate-900">
                 Your Medicines Explained ({result.medications.length})
               </h3>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -439,27 +548,27 @@ export function App() {
               </div>
             </section>
 
-            {/* Red Flags & Follow-up */}
+            {/* Red Flags & Interactive Follow-up */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <section className="rounded-2xl border border-rose-200 bg-white p-5 shadow-xs print-break-inside-avoid">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-rose-900">
+              <section className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm print-break-inside-avoid">
+                <h3 className="flex items-center gap-2 text-lg font-extrabold text-rose-900">
                   <AlertTriangle className="h-5 w-5 text-rose-600" />
                   Red-Flag Symptoms (When to Get Help)
                 </h3>
-                <div className="mt-3 space-y-2.5">
+                <div className="mt-3.5 space-y-2.5">
                   {result.red_flags.map((rf, i) => (
                     <div
                       key={i}
-                      className={`rounded-xl border p-3 text-sm ${
+                      className={`rounded-xl border p-3.5 text-sm ${
                         rf.urgency === 'call_911'
-                          ? 'border-rose-300 bg-rose-50'
-                          : 'border-amber-200 bg-amber-50'
+                          ? 'border-rose-300 bg-rose-50/90'
+                          : 'border-amber-200 bg-amber-50/90'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-slate-900">{rf.symptom}</span>
+                        <span className="font-bold text-slate-900">{rf.symptom}</span>
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase ${
                             rf.urgency === 'call_911'
                               ? 'bg-rose-600 text-white'
                               : 'bg-amber-500 text-slate-950'
@@ -468,34 +577,67 @@ export function App() {
                           {rf.urgency === 'call_911' ? 'Call 911 / ER' : 'Call Doctor'}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-slate-700">{rf.action}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-slate-700">{rf.action}</p>
                     </div>
                   ))}
                 </div>
               </section>
 
-              <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs print-break-inside-avoid">
+              <section className="space-y-5 rounded-2xl border border-teal-200 bg-white p-5 shadow-sm print-break-inside-avoid">
                 <div>
-                  <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                  <h3 className="flex items-center gap-2 text-lg font-extrabold text-slate-900">
                     <CalendarCheck className="h-5 w-5 text-teal-600" />
-                    Follow-Up Checklist
+                    Interactive Follow-Up Checklist
                   </h3>
-                  <ul className="mt-2.5 space-y-2">
-                    {result.follow_up_instructions.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                        <ClipboardList className="h-4 w-4 shrink-0 text-teal-600 mt-0.5" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
+                  <ul className="mt-3 space-y-2">
+                    {result.follow_up_instructions.map((item, i) => {
+                      const checked = !!checkedFollowUps[i];
+                      return (
+                        <li key={i}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCheckedFollowUps((prev) => ({ ...prev, [i]: !prev[i] }))
+                            }
+                            className={`flex w-full items-start gap-2.5 rounded-xl border p-2.5 text-left text-sm transition ${
+                              checked
+                                ? 'border-emerald-200 bg-emerald-50/60 text-slate-500 line-through'
+                                : 'border-slate-200 bg-slate-50/60 text-slate-800 hover:border-teal-300'
+                            }`}
+                          >
+                            <span
+                              className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                                checked
+                                  ? 'border-emerald-600 bg-emerald-600 text-white'
+                                  : 'border-slate-400 bg-white'
+                              }`}
+                            >
+                              {checked && <Check className="h-3 w-3" />}
+                            </span>
+                            <span>{item}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
 
                 <div className="border-t border-slate-100 pt-4">
-                  <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                    <HelpCircle className="h-5 w-5 text-teal-600" />
-                    Questions to Ask Your Pharmacist
-                  </h3>
-                  <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-slate-700">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
+                      <HelpCircle className="h-5 w-5 text-teal-600" />
+                      Questions to Ask Your Pharmacist
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={handleCopyQuestions}
+                      className="inline-flex items-center gap-1 rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-teal-200 hover:bg-teal-100 no-print"
+                    >
+                      {copiedQuestions ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copiedQuestions ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <ul className="mt-2.5 list-disc space-y-1.5 pl-5 text-sm text-slate-700">
                     {result.questions_for_pharmacist.map((q, i) => (
                       <li key={i}>{q}</li>
                     ))}
@@ -505,8 +647,8 @@ export function App() {
             </div>
 
             {/* Grounded Q&A */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs no-print">
-              <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+            <section className="rounded-2xl border border-teal-200 bg-white p-5 shadow-sm no-print">
+              <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
                 <MessageSquareHeart className="h-5 w-5 text-teal-600" />
                 Ask About Your Discharge Plan
               </h3>
@@ -519,19 +661,19 @@ export function App() {
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   placeholder="e.g., Can I take ibuprofen for a headache with these medicines?"
-                  className="flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-sm focus:border-teal-500 focus:outline-none"
+                  className="flex-1 rounded-xl border border-teal-200 bg-teal-50/20 px-3.5 py-2.5 text-sm focus:border-teal-500 focus:bg-white focus:outline-none"
                 />
                 <button
                   type="submit"
                   disabled={asking || !question.trim()}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition hover:bg-teal-700 disabled:opacity-50"
                 >
                   {asking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   Ask
                 </button>
               </form>
               {qaReply && (
-                <div className="mt-3 rounded-xl border border-teal-200 bg-teal-50/50 p-4 text-sm text-slate-800">
+                <div className="mt-3 rounded-xl border border-teal-200 bg-teal-50/60 p-4 text-sm text-slate-800">
                   <p className="leading-relaxed">{qaReply.answer}</p>
                   <p className="mt-2 text-xs italic text-slate-500">{qaReply.disclaimer}</p>
                 </div>
@@ -541,8 +683,8 @@ export function App() {
         )}
       </main>
 
-      <footer className="border-t border-teal-200/80 bg-teal-900/5 py-4 text-center text-xs text-teal-900/80">
-        VeriCare — Built for SLAY HACKS 2026 <span className="font-semibold">By Adarsh Panicker</span>
+      <footer className="mt-8 border-t border-teal-200/80 bg-teal-900/5 py-5 text-center text-xs text-teal-900/80">
+        VeriCare — Built for SLAY HACKS 2026 <span className="font-bold">By Adarsh Panicker</span>
       </footer>
     </div>
   );
